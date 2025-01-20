@@ -2,9 +2,149 @@
 
 A curated, chronologically ordered list of notable changes in [Gitpod's default workspace images](https://hub.docker.com/u/gitpod).
 
+## 2025-01-13 🎆
+
+- Bump Rust to `1.84.0`
+
+## 2024-12-01
+
+- Bump Rust to `1.83.0`
+
+## 2024-14-11
+
+- Bump Docker in base image to `27.3.1`
+
+## 2024-11-11
+
+- Introduce `workspace-java-23`
+
+## 2024-10-31 🎃
+
+- Bump the `workspace-node-lts` image to Node `22.11.0`
+- Bump the `workspace-node` image to Node `23.1.0`
+- Introduce `workspace-node-23`
+
+## 2024-10-22
+
+- Deprecate `workspace-python-3.8`
+- Introduce `workspace-python-3.13`
+
+## 2024-10-21
+
+- Bump Rust to `1.82.0`
+
+## 2024-09-09
+
+- Remove dotnet 7 as a maintained image, it is no longer supported. Users requiring dotnet 7 are encouraged to do manage a custom image instead.
+
+## 2024-08-15
+
+- Bump Go to `1.23.0`
+
+## 2024-08-06
+
+- Introduce `workspace-node-20` and `workspace-node-22`
+- Deprecate `workspace-node-21` since it has reached EoL
+
+## 2024-07-01
+
+- Bump Clang to `18` and enable ASAN Support.
+
+## 2024-06-17
+
+- Bump Rust to `1.79.0`
+
+## 2024-05-06
+
+- Bump Rust to `1.78.0`
+- Introduce `workspace-java-21`
+
+## 2024-04-29
+
+- Temporarily pin the version of Docker. Refer to [19662](https://github.com/gitpod-io/gitpod/issues/19662#issuecomment-2083388559) for more detail.
+
+## 2024-04-10
+
+- Deprecate `gitpod/workspace-ruby-3.0`
+
+## 2024-04-03
+
+- Bump Bun to `1.1.0`
+
+## 2024-03-27
+
+- Bump Rust to `1.77.0`
+
+## 2024-02-11
+
+- Bump Go to `1.22.0`
+
+## 2024-02-09
+
+- Bump Rust to `1.76.0`
+
+## 2024-01-09
+
+- Bump Rust to `1.75.0`
+
+## 2024-01-08
+
+- Bump nix to `2.19.2`
+- Introduce `workspace-ruby-3.3`
+- Bump the Ruby version in `workspace-ruby-3.3`
+
+## 2024-01-04
+
+- Bump docker-compose to `2.23.3`
+
+## 2024-01-03
+
+- Bump `workspace-dotnet` to `8.0`
+- Introduce `workspace-dotnet-6`, `workspace-dotnet-7` and `workspace-dotnet-8`
+
+## 2023-12-12
+
+- Bump Rust to `1.74.1`
+- Bump Go `1.21` to `1.21.5`
+- Bump Python `3.12` to `3.12.1`
+
+## 2023-10-19
+
+- Node 20 replaces Node 18 as the current LTS
+- Introduce Node `21.0.0` in `workspace-node`
+- Introduce `workspace-node-18` for those, who aren't ready to upgrade just yet
+
+## 2023-10-12
+
+- Reintroduce `gitpod/workspace-python-3.10`, `gitpod/workspace-python-3.9` and `gitpod/workspace-python-3.8`
+
+## 2023-10-09
+
+- Bump Rust to `1.73.0`
+- Upgrade Clang to `17.0.2`
+
+## 2023-10-06
+
+- Deprecate `gitpod/workspace-python-3.10`
+- Introduce `gitpod/workspace-python-3.12`
+- Bump default Python version in `workspace:full` to `3.12.0`
+
+## 2023-10-02
+
+- For `workspace-node`, deprecate Node 19 in favor of Node 20
+
+## 2023-09-18
+
+- Bump Rust to `1.72.0`
+
+## 2023-09-15
+
+- Bump the default Go version in all images to `1.21`
+- Bump Go 1.21 to `1.21.1`
+
 ## 2023-07-11
 
-- Bump Go to 1.20 to `1.20.6` and Go 1.19 `1.19.11`
+- Bump Go 1.20 to `1.20.6` and Go 1.19 to `1.19.11`
 
 ## 2022-02-01
 

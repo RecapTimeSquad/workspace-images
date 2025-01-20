@@ -2,8 +2,8 @@ name: Publish latest images to Docker Hub
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 10 * * MON"
+  # schedule:
+  #   - cron: "0 10 * * MON"
 
 jobs:
   # Sync the 'latest' tag from GAR to Docker Hub
@@ -12,8 +12,9 @@ jobs:
   # Click New environment, set the name production, and click Configure environment.
   # Check the "Required reviewers" box and enter at least one user or team name.
   promote-latest:
+    if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    environment: "production-restricted"
+    environment: "production"
     permissions:
       contents: "read"
       id-token: "write"
@@ -22,11 +23,11 @@ jobs:
       GAR_IMAGE_REGISTRY: europe-docker.pkg.dev
       DH_IMAGE_REGISTRY: registry.hub.docker.com
       IAM_SERVICE_ACCOUNT: workspace-images-gha-sa@gitpod-artifacts.iam.gserviceaccount.com
-      SKOPEO_VERSION: 1.12.0
+      SKOPEO_VERSION: 1.15.2
 
     steps:
       - name: 📥 Checkout workspace-images
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: gitpod-io/workspace-images
 
@@ -60,13 +61,13 @@ jobs:
           echo "{}" > $SKOPEO_AUTH_DIR/auth
 
       - name: ☁️ Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1.1.1
+        uses: google-github-actions/setup-gcloud@v2.1.2
         with:
           version: 393.0.0
 
       - name: 🔐 Authenticate to Google Cloud
         id: "auth"
-        uses: google-github-actions/auth@v1.1.1
+        uses: google-github-actions/auth@v2.1.7
         with:
           token_format: "access_token"
           workload_identity_provider: ${{env.WORKLOAD_IDENTITY_POOL_ID}}
@@ -93,7 +94,31 @@ jobs:
           IMAGES=$(cat .github/promote-images.yml | yq '."europe-docker.pkg.dev/gitpod-artifacts/docker-dev"."images-by-tag-regex"|keys[]' -r)
           for IMAGE in $IMAGES;
           do
-            sudo -E skopeo copy --format=oci --dest-oci-accept-uncompressed-layers \
+            sudo -E skopeo copy --format=oci --dest-oci-accept-uncompressed-layers --retry-times=5 \
             docker://${{ env.GAR_IMAGE_REGISTRY }}/gitpod-artifacts/docker-dev/$IMAGE:latest \
             docker://${{ env.DH_IMAGE_REGISTRY }}/gitpod/$IMAGE:latest
           done
+  notify:
+    if: always() && ((github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    needs: promote-latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: The release was successful
+        id: slack-success
+        if: needs.promote-latest.result == 'success'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook-type: incoming-webhook
+          webhook: ${{ secrets.RELEASE_NOTIFY_WEBHOOK }}
+          payload: |
+            text: "The release was successful :rocket:"
+
+      - name: The release was not successful
+        id: slack-failure
+        if: needs.promote-latest.result != 'success'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook-type: incoming-webhook
+          webhook: ${{ secrets.RELEASE_NOTIFY_WEBHOOK }}
+          payload: |
+            text: ${{ format('The release had trouble :construction:, the result was: {0}', needs.promote-latest.result) }}

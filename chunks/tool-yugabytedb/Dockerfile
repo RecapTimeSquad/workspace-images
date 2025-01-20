@@ -30,9 +30,10 @@ RUN curl -sSLo ./yugabyte.tar.gz https://downloads.yugabyte.com/releases/${YB_VE
 ENV PATH="$HOME/.pyenv/bin:$HOME/.pyenv/shims:$PATH"
 ENV PYENV_ROOT="$HOME/.pyenv"
 RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv \
-	&& git -C ~/.pyenv checkout ff93c58babd813066bf2d64d004a5cee33c0f27b \
-	&& pyenv install ${PYTHON_VERSION} \
-	&& pyenv global ${PYTHON_VERSION}
+  # v2.4.16
+  && git -C ~/.pyenv checkout 0f8b2b2b848ea080b0e01a707910c272ec4ce736 \
+  && pyenv install ${PYTHON_VERSION} \
+  && pyenv global ${PYTHON_VERSION}
 
 # configure the interpreter
 RUN ["/usr/local/yugabyte/bin/post_install.sh"]
@@ -47,6 +48,7 @@ ENV WEB_PORT=7000
 ENV TSERVER_WEB_PORT=9000
 ENV YSQL_API_PORT=13000
 ENV YCQL_API_PORT=12000
+ENV YUGABYTED_UI=15433
 
 # re-initialization is automatically handled
 RUN echo "\n# yugabytedb start command" >> /home/gitpod/.bashrc.d/100-yugabyedb-launch
@@ -54,4 +56,4 @@ RUN echo "[[ -f \${GITPOD_REPO_ROOT}/.nopreload ]] || yugabyted start --base_dir
 
 RUN chmod +x /home/gitpod/.bashrc.d/100-yugabyedb-launch
 
-EXPOSE ${YSQL_PORT} ${YCQL_PORT} ${WEB_PORT} ${TSERVER_WEB_PORT} ${YSQL_API_PORT} ${YCQL_API_PORT}
+EXPOSE ${YSQL_PORT} ${YCQL_PORT} ${WEB_PORT} ${TSERVER_WEB_PORT} ${YSQL_API_PORT} ${YCQL_API_PORT} ${YUGABYTED_UI}

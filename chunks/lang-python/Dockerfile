@@ -5,7 +5,7 @@ ARG PYTHON_VERSION
 
 USER gitpod
 # Dazzle does not rebuild a layer until one of its lines are changed. Increase this counter to rebuild this layer.
-ENV TRIGGER_REBUILD=1
+ENV TRIGGER_REBUILD=2
 
 ENV PATH="$HOME/.pyenv/bin:$HOME/.pyenv/shims:$PATH"
 ENV PIPENV_VENV_IN_PROJECT=true
@@ -21,7 +21,8 @@ RUN sudo install-packages \
 	libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
 	# Install PYENV
 	&& git clone https://github.com/pyenv/pyenv.git ~/.pyenv \
-	&& git -C ~/.pyenv checkout ff93c58babd813066bf2d64d004a5cee33c0f27b \
+	# v2.4.16
+	&& git -C ~/.pyenv checkout 0f8b2b2b848ea080b0e01a707910c272ec4ce736 \
 	&& pyenv install ${PYTHON_VERSION} \
 	&& pyenv global ${PYTHON_VERSION} \
 	&& for exec in global; do printf '%s\n' 'source "$HOME/.gp_pyenv.d/userbase.bash"' >> "$PYENV_ROOT/libexec/pyenv-$exec"; done \
@@ -30,14 +31,15 @@ RUN sudo install-packages \
 	&& pip install --no-cache-dir --upgrade \
 	setuptools wheel virtualenv pipenv pylint rope flake8 \
 	mypy autopep8 pep8 pylama pydocstyle bandit notebook \
-	twine
-# Install poetry
-RUN if echo $PYTHON_VERSION | grep -q "3.6.*"; then \
-		curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.1.15 python; \
-    else \
-		curl -sSL https://install.python-poetry.org | python; \
-	fi
-RUN sudo rm -rf /tmp/*
+	twine \
+	# Install poetry
+	&& curl -sSL https://install.python-poetry.org | python \
+	&& sudo rm -rf /tmp/*
+
+# update `setuptools` used by our virtual environment
+RUN bash -c "source /home/gitpod/.local/share/pypoetry/venv/bin/activate \
+	&& pip install --upgrade setuptools \
+	&& deactivate"
 
 COPY --chown=gitpod:gitpod pyenv.d $HOME/.gp_pyenv.d
 COPY --chown=gitpod:gitpod userbase.bash $HOME/.gp_pyenv.d

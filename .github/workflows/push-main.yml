@@ -6,14 +6,27 @@ on:
       - main
 
 jobs:
+  create-runner:
+    uses: gitpod-io/gce-github-runner/.github/workflows/create-vm.yml@main
+    secrets:
+      runner_token: ${{ secrets.SELF_HOSTED_GITHUB_RUNNER_TOKEN }}
+      gcp_credentials: ${{ secrets.SELF_HOSTED_GITHUB_RUNNER_GCP_CREDENTIALS }}
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/main' && github.run_id || github.sha }}-create-runner
+      cancel-in-progress: false
+
   # Build images using artifactory as image registry.
   # To implement manual approvals, the workflow uses an Environment.
   #
-  # From your GitHub repo clock Settings. In the left menu, click Environments.
+  # From your GitHub repo click Settings. In the left menu, click Environments.
   # Click New environment, set the name production, and click Configure environment.
   # Check the "Required reviewers" box and enter at least one user or team name.
   sync:
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.create-runner.outputs.label }}
+    needs: create-runner
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/main' && github.run_id || github.sha }}-sync
+      cancel-in-progress: true
     environment: "production"
     permissions:
       contents: "read"
@@ -24,18 +37,18 @@ jobs:
       DH_IMAGE_REGISTRY: registry.hub.docker.com
       IAM_SERVICE_ACCOUNT: workspace-images-gha-sa@gitpod-artifacts.iam.gserviceaccount.com
       DAZZLE_VERSION: 0.1.17
-      BUILDKIT_VERSION: 0.11.6
-      SKOPEO_VERSION: 1.12.0
+      BUILDKIT_VERSION: 0.12.3
+      SKOPEO_VERSION: 1.15.2
 
     steps:
       - name: 📥 Checkout workspace-images
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: gitpod-io/workspace-images
 
       - name: 🔧 Setup tools
         run: |
-          sudo apt-get install python3-pip shellcheck
+          sudo apt-get install --yes python3-pip shellcheck
           curl -sSL https://github.com/mvdan/sh/releases/download/v3.5.0/shfmt_v3.5.0_linux_amd64 -o shfmt
           sudo mv shfmt /usr/local/bin/shfmt && sudo chmod +x /usr/local/bin/shfmt
           sudo pip3 install pre-commit
@@ -50,6 +63,11 @@ jobs:
         run: |
           curl -sSL "https://github.com/gitpod-io/dazzle/releases/download/v${DAZZLE_VERSION}/dazzle_${DAZZLE_VERSION}_Linux_x86_64.tar.gz" | sudo tar -xvz -C /usr/local/bin
 
+      - name: 🕰️ Create timestamp tag
+        id: create-timestamp-tag
+        run: |
+          echo "TIMESTAMP_TAG=$(date '+%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
+
       - name: 🔆 Install skopeo
         env:
           SKOPEO_VERSION: ${{env.SKOPEO_VERSION}}
@@ -63,6 +81,12 @@ jobs:
           # Any step using skopeo needs SKOPEO_SYNC_FILES env var
           SKOPEO_SYNC_FILES=$(mktemp -d)
           echo "SKOPEO_SYNC_FILES=${SKOPEO_SYNC_FILES}" >> $GITHUB_ENV
+
+          # limit what we push as time stamped images to images built in the current year and month only
+          current_year=$(date +%Y)
+          current_month=$(date +%m)
+          sed -i "s/TIMESTAMP_TAG/$TIMESTAMP_TAG/g" "${GITHUB_WORKSPACE}/.github/promote-images.yml"
+
           cp "${GITHUB_WORKSPACE}/.github/promote-images.yml" "${SKOPEO_SYNC_FILES}"
           # Build a fake skopeo script to run a container
           cat <<EOF | sudo tee /usr/local/bin/skopeo > /dev/null
@@ -90,13 +114,13 @@ jobs:
           sudo chmod +777 /run/buildkit/buildkitd.sock
 
       - name: ☁️ Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1.1.1
+        uses: google-github-actions/setup-gcloud@v2.1.2
         with:
           version: 393.0.0
 
       - name: 🔐 Authenticate to Google Cloud
         id: "auth"
-        uses: google-github-actions/auth@v1.1.1
+        uses: google-github-actions/auth@v2.1.7
         with:
           token_format: "access_token"
           access_token_lifetime: "43200s"
@@ -129,11 +153,6 @@ jobs:
           GAR_IMAGE_REGISTRY: ${{env.GAR_IMAGE_REGISTRY}}
         run: |
           dazzle combine "${GAR_IMAGE_REGISTRY}/gitpod-artifacts/docker-dev/workspace-base-images" --all
-
-      - name: 🕰️ Create timestamp tag
-        id: create-timestamp-tag
-        run: |
-          echo "TIMESTAMP_TAG=$(date '+%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
 
       - name: 🔧 Setup copy tools
         run: |
@@ -176,5 +195,19 @@ jobs:
         run: |
             sudo -E skopeo sync \
             --src yaml \
+            --retry-times=2 \
+            --keep-going \
             --dest docker \
             /.github/promote-images.yml "${DH_IMAGE_REGISTRY}/gitpod"
+
+  delete-runner:
+    if: always()
+    needs:
+      - create-runner
+      - sync
+    uses: gitpod-io/gce-github-runner/.github/workflows/delete-vm.yml@main
+    secrets:
+      gcp_credentials: ${{ secrets.SELF_HOSTED_GITHUB_RUNNER_GCP_CREDENTIALS }}
+    with:
+      runner-label: ${{ needs.create-runner.outputs.label }}
+      machine-zone: ${{ needs.create-runner.outputs.machine-zone }}
